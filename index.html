@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aliens-Style Combat Tracker (P4.1 - Full Code)</title> <style>
+    <title>Aliens-Style Combat Tracker (P4.3 - Input Style Fix)</title> <style>
         /* Import Google Font */
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
@@ -14,6 +14,7 @@
             --warning-color: #FFD700; /* Gold/Yellow */
             --critical-color: #FF851B; /* Orange */
             --broken-color: #FF4136; /* Red */
+            --incapacitated-color: #0074D9; /* Blue for Incapacitated */
             --dead-color: #555555; /* Dark Grey */
             --card-bg: #1a1a1a; /* Dark Background for card */
             --card-border-color: var(--primary-color);
@@ -28,18 +29,10 @@
         }
 
         body {
-            font-family: var(--font-family);
-            background-color: #0a0a0a;
-            color: var(--text-color); /* Default text color */
-            margin: 0;
-            padding: 0;
-            font-size: 18px;
+            font-family: var(--font-family); background-color: #0a0a0a; color: var(--text-color);
+            margin: 0; padding: 0; font-size: 18px;
         }
-
-        .main-controls {
-            text-align: center;
-            margin: 20px 0;
-        }
+        .main-controls { text-align: center; margin: 20px 0; }
         .main-controls button {
              background-color: var(--input-bg); color: var(--text-color); border: 2px solid var(--input-border);
              font-family: inherit; font-size: 1.2em; padding: 8px 15px; border-radius: 4px;
@@ -49,13 +42,13 @@
          .main-controls button:active { transform: translateY(1px); }
 
         h1 { color: var(--primary-color); text-align: center; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
-
         .dashboard-container { padding: 0 20px 20px 20px; }
         .dashboard { display: flex; flex-wrap: wrap; gap: 25px; justify-content: center; }
 
         .character-card {
             border: 3px solid var(--card-border-color); background-color: var(--card-bg); padding: 10px;
-            border-radius: 4px; width: 320px; box-shadow: inset 0 0 8px 0px rgba(0, 0, 0, 0.5), 3px 3px 8px rgba(0, 0, 0, 0.7);
+            border-radius: 4px; width: 320px; /* Reverted width slightly */
+            box-shadow: inset 0 0 8px 0px rgba(0, 0, 0, 0.5), 3px 3px 8px rgba(0, 0, 0, 0.7);
             display: flex; flex-direction: column; color: var(--text-color); position: relative;
         }
 
@@ -70,118 +63,102 @@
         /* Health Monitor Area */
         .health-monitor {
             background-color: var(--monitor-bg); border: 1px solid var(--text-color); border-radius: 2px;
-            width: 100%; height: 160px; /* Increased height */ overflow: hidden;
-            position: relative; margin-bottom: 10px;
+            width: 100%; height: 160px; overflow: hidden; position: relative; margin-bottom: 10px;
             background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-            background-size: 12px 12px;
-            cursor: crosshair; /* Indicate interactive area */
+            background-size: 12px 12px; cursor: crosshair;
         }
-
-        /* SVG Container - Positioned to allow gradient underneath */
-         .svg-container {
-             position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 22px); /* Leave space for gradient at bottom */
-             z-index: 1; /* Above gradient, below text */
-             pointer-events: none; /* Allow clicks to pass through to monitor div */
-         }
+        .svg-container { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 22px); z-index: 1; pointer-events: none; }
         .health-monitor svg { display: block; width: 100%; height: 100%; }
         .health-monitor path { stroke-dasharray: 3000; }
 
         /* HP Gradient Bar Styles */
-        .hp-gradient-bar {
-            position: absolute; bottom: 5px; left: 5px; right: 5px; height: 12px; border-radius: 2px;
-            background: linear-gradient(to right, var(--broken-color) 0%, var(--critical-color) 33%, var(--warning-color) 66%, var(--primary-color) 100%);
-            z-index: 0; box-shadow: inset 0 0 3px 1px rgba(0,0,0,0.7); pointer-events: none; /* Doesn't capture clicks */
-        }
-        .hp-gradient-mask {
-            position: absolute; bottom: 5px; right: 5px; height: 12px; background-color: var(--monitor-bg);
-            width: 0%; /* Updated by JS */ z-index: 0; transition: width 0.3s ease-out; border-radius: 0 2px 2px 0; pointer-events: none;
-        }
+        .hp-gradient-bar { position: absolute; bottom: 5px; left: 5px; right: 5px; height: 12px; border-radius: 2px; background: linear-gradient(to right, var(--broken-color) 0%, var(--critical-color) 33%, var(--warning-color) 66%, var(--primary-color) 100%); z-index: 0; box-shadow: inset 0 0 3px 1px rgba(0,0,0,0.7); pointer-events: none; }
+        .hp-gradient-mask { position: absolute; bottom: 5px; right: 5px; height: 12px; background-color: var(--monitor-bg); width: 0%; z-index: 0; transition: width 0.3s ease-out; border-radius: 0 2px 2px 0; pointer-events: none; }
 
         /* Overlay Text Container (Name, Status) */
-        .monitor-text-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 22px); /* Avoid covering gradient */
-            padding: 5px 8px; box-sizing: border-box; display: flex; flex-direction: column;
-            justify-content: space-between; z-index: 2; pointer-events: none;
-        }
-        .monitor-text-overlay > * { pointer-events: auto; } /* Make direct children interactive */
-        .monitor-text-overlay > div { pointer-events: none; } /* Make wrapper div non-interactive */
-        .monitor-text-overlay > div > * { pointer-events: auto; } /* Make elements inside wrapper interactive */
-
+        .monitor-text-overlay { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 22px); padding: 5px 8px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; z-index: 2; pointer-events: none; }
+        .monitor-text-overlay > * { pointer-events: auto; } .monitor-text-overlay > div { pointer-events: none; } .monitor-text-overlay > div > * { pointer-events: auto; }
 
         /* Name Display & Edit Input Styles */
-        .char-name-display {
-            display: inline-block; background-color: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 2px;
-            font-size: 1.6em; color: var(--overlay-text-color); text-shadow: var(--text-shadow);
-            text-transform: uppercase; cursor: pointer; max-width: calc(100% - 30px);
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .char-name-edit {
-            display: none; background-color: var(--input-bg); border: 1px solid var(--warning-color);
-            color: var(--overlay-text-color); font-family: inherit; font-size: 1.6em;
-            text-transform: uppercase; padding: 1px 5px; width: calc(100% - 30px);
-            box-sizing: border-box; outline: none;
-        }
+        .char-name-display { display: inline-block; background-color: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 2px; font-size: 1.6em; color: var(--overlay-text-color); text-shadow: var(--text-shadow); text-transform: uppercase; cursor: pointer; max-width: calc(100% - 30px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .char-name-edit { display: none; background-color: var(--input-bg); border: 1px solid var(--warning-color); color: var(--overlay-text-color); font-family: inherit; font-size: 1.6em; text-transform: uppercase; padding: 1px 5px; width: calc(100% - 30px); box-sizing: border-box; outline: none; }
         /* Status Text Overlay Style */
-        .status-overlay {
-            align-self: flex-end; background-color: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 2px;
-            font-size: 1.1em; font-weight: bold; color: var(--overlay-text-color);
-            text-shadow: var(--text-shadow); text-transform: uppercase;
+        .status-overlay { align-self: flex-end; background-color: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 2px; font-size: 1.1em; font-weight: bold; color: var(--overlay-text-color); text-shadow: var(--text-shadow); text-transform: uppercase; }
+
+
+        /* Sections Below Monitor */
+        .hp-controls, .info-grid, .condition-action-panel {
+            padding: 8px 5px; margin-top: 8px; border-top: 1px solid rgba(var(--primary-color), 0.3);
+        }
+        .hp-controls { margin-top: 0; border-top: none; padding-top: 0;}
+
+        /* HP Controls Area */
+        .hp-controls { display: flex; flex-direction: column; gap: 8px; align-items: center; padding-bottom: 10px; }
+        .hp-adjust { display: flex; justify-content: center; align-items: center; width: 100%; }
+        .hp-adjust button { width: 45px; height: 35px; padding: 0; font-size: 1.5em; line-height: 1; margin: 0 10px; cursor: pointer; background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); border-radius: 2px; }
+        .hp-inputs-wrapper { display: flex; justify-content: space-around; width: 100%; margin-top: 5px;}
+        .hp-input-group { display: flex; flex-direction: column; align-items: center; font-size: 0.9em;}
+        .hp-input-group label { margin-bottom: 2px;}
+        /* Apply consistent number input styles here too */
+        .hp-input-group input {
+            width: 60px; text-align: right; padding: 2px 4px;
+            background-color: var(--input-bg); color: var(--text-color);
+            border: 1px solid var(--input-border); border-radius: 2px;
+            font-family: inherit; font-size: 1em;
+             /* Hide spinner arrows */
+             -moz-appearance: textfield;
+        }
+        .hp-input-group input::-webkit-inner-spin-button,
+        .hp-input-group input::-webkit-outer-spin-button {
+            -webkit-appearance: none; margin: 0;
         }
 
-        /* Info Grid (Below Monitor) */
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; margin-bottom: 12px; padding: 0 5px; }
-        .info-grid div { margin: 0; display: flex; justify-content: space-between; align-items: center; }
-        .info-grid label { font-weight: normal; margin-right: 5px; color: var(--text-color); }
-        .info-grid input[type="number"] {
-            width: 55px; text-align: right; padding: 2px 4px; background-color: var(--input-bg); color: var(--text-color);
-            border: 1px solid var(--input-border); border-radius: 2px; font-family: inherit; font-size: 1em;
+        /* Info Grid (Init, Stress, Rad) */
+        .info-grid { display: flex; flex-direction: column; gap: 8px; }
+        .stat-adjust { display: flex; justify-content: space-between; align-items: center; }
+        .info-grid label { font-weight: normal; margin-right: 5px; color: var(--text-color); flex-shrink: 0; }
+        .value-adjust-wrapper { display: flex; align-items: center; gap: 5px; }
+        .value-adjust-wrapper button { width: 25px; height: 25px; padding: 0; font-size: 1.1em; line-height: 1; background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); border-radius: 2px; cursor: pointer; }
+        .value-adjust-wrapper button:hover:not(:disabled) { background-color: var(--primary-color); color: black; border-color: black; }
+        .value-adjust-wrapper button:active:not(:disabled) { transform: translateY(1px); }
+        /* Style all number inputs consistently */
+        .value-adjust-wrapper input[type="number"] {
+            width: 50px; text-align: right; padding: 2px 4px;
+            background-color: var(--input-bg); /* Explicit */
+            color: var(--text-color); /* Explicit */
+            border: 1px solid var(--input-border); /* Explicit */
+            border-radius: 2px; font-family: inherit; font-size: 1em;
+             /* Hide spinner arrows */
+             -moz-appearance: textfield;
         }
-        /* Make Current HP span full width for better spacing */
-         .info-grid .hp-current-line { grid-column: 1 / -1; }
-         /* Style disabled inputs */
-         input:disabled { background-color: #333; opacity: 0.6; cursor: not-allowed; border-color: #444; }
+        .value-adjust-wrapper input[type=number]::-webkit-inner-spin-button,
+        .value-adjust-wrapper input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none; margin: 0;
+        }
+        input:disabled { background-color: #333; opacity: 0.6; cursor: not-allowed; border-color: #444; }
 
-        /* Controls (Below Info Grid) */
-        .controls { margin-top: auto; padding-top: 5px; border-top: 1px solid var(--card-border-color); padding: 5px 5px 0 5px; }
-        .controls div { margin: 5px 0; display: flex; justify-content: space-between; align-items: center; }
-        .controls label { font-weight: normal; margin-right: 5px; color: var(--text-color);}
-        .controls input[type="number"] {
-             width: 55px; text-align: right; padding: 2px 4px; background-color: var(--input-bg); color: var(--text-color);
-             border: 1px solid var(--input-border); border-radius: 2px; font-family: inherit; font-size: 1em;
-        }
-        .controls .hp-adjust button {
-            width: 35px; height: 35px; padding: 0; font-size: 1.5em; line-height: 1; margin-left: 8px; cursor: pointer;
-            background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); border-radius: 2px;
-        }
-        .controls button {
-             background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); font-family: inherit;
-             font-size: 1em; padding: 5px 8px; border-radius: 2px; cursor: pointer; text-transform: uppercase;
-        }
-        .controls button:hover:not(:disabled) { background-color: var(--primary-color); color: black; border-color: black; }
-        .controls button:active:not(:disabled) { transform: translateY(1px); }
 
-        /* Styling for Conditions Area */
-         .conditions-area { display: flex; flex-direction: column; align-items: flex-start; margin-top: 10px; }
-         .conditions-area label { margin-bottom: 5px; font-size: 0.9em; opacity: 0.8; }
-         .condition-toggles { display: flex; flex-wrap: wrap; gap: 5px; width: 100%; }
-         .condition-toggle { flex-grow: 1; padding: 3px 5px; font-size: 0.85em; opacity: 0.7; border-width: 1px; min-width: 70px; }
-         .condition-toggle.condition-active { border-color: var(--warning-color); color: var(--warning-color); background-color: #440; opacity: 1.0; font-weight: bold; }
+        /* Condition/Action Panel */
+        .condition-action-panel { display: flex; gap: 10px; align-items: flex-start; }
+        .actions-stack { display: flex; flex-direction: column; gap: 8px; flex-basis: 120px; flex-shrink: 0; }
+        .actions-stack button { background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); font-family: inherit; font-size: 0.9em; padding: 4px 8px; border-radius: 2px; cursor: pointer; text-transform: uppercase; width: 100%; text-align: center; }
+        .actions-stack button:hover:not(:disabled) { background-color: var(--primary-color); color: black; border-color: black; }
+        .actions-stack button:active:not(:disabled) { transform: translateY(1px); }
+        .mark-incapacitated-btn.condition-active { border-color: var(--incapacitated-color); color: var(--incapacitated-color); background-color: #002b4d; font-weight: bold; }
 
+        .condition-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; flex-grow: 1; }
+        .condition-toggle { padding: 3px 5px; font-size: 0.85em; opacity: 0.7; border-width: 1px; background-color: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); font-family: inherit; border-radius: 2px; cursor: pointer; text-transform: uppercase; text-align: center; flex-basis: calc(50% - 3px); box-sizing: border-box; } /* Adjusted flex-basis */
+        .condition-toggle.condition-active { border-color: var(--warning-color); color: var(--warning-color); background-color: #440; opacity: 1.0; font-weight: bold; }
 
         /* --- Status-Specific Styling --- */
         .character-card.status-dead { border-color: var(--dead-color); box-shadow: inset 0 0 8px 0px rgba(100,100,100, 0.5), 3px 3px 8px rgba(0, 0, 0, 0.7); opacity: 0.7; }
-        .character-card.status-dead .monitor-text-overlay,
-        .character-card.status-dead .info-grid,
-        .character-card.status-dead .controls,
-        .character-card.status-dead .health-monitor { filter: grayscale(90%); }
-        .character-card.status-dead .monitor-text-overlay *,
-        .character-card.status-dead .info-grid *,
-        .character-card.status-dead .controls * { color: var(--dead-color) !important; border-color: var(--dead-color) !important; text-shadow: 1px 1px 2px black; }
-        .character-card.status-dead input,
-        .character-card.status-dead button { pointer-events: none !important; }
+        .character-card.status-dead .monitor-text-overlay, .character-card.status-dead .hp-controls, .character-card.status-dead .info-grid, .character-card.status-dead .condition-action-panel, .character-card.status-dead .health-monitor { filter: grayscale(90%); }
+        .character-card.status-dead .monitor-text-overlay *, .character-card.status-dead .hp-controls *, .character-card.status-dead .info-grid *, .character-card.status-dead .condition-action-panel * { color: var(--dead-color) !important; border-color: var(--dead-color) !important; text-shadow: 1px 1px 2px black; }
+        .character-card.status-dead input, .character-card.status-dead button { pointer-events: none !important; }
         .character-card.status-dead .remove-button { pointer-events: auto !important; filter: none; opacity: 1; }
         .character-card.status-dead .char-name-display { cursor: default; }
 
+        .character-card.status-incapacitated { border-color: var(--incapacitated-color); }
         .character-card.status-broken { border-color: var(--broken-color); }
         .character-card.status-critical { border-color: var(--critical-color); }
         .character-card.status-injured { border-color: var(--warning-color); }
@@ -200,190 +177,53 @@
 
 <script>
     // --- SVG Data Store ---
-    // (Same as previous version - uses original paths where possible, extended paths otherwise)
-    const svgStates = {
-        healthy: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/>
-             <path d="M17.902,114.475h26.949c2.296,0,12.876-10.182,20.063-10.182 c7.186,0,10.83,10.182,12.576,10.182h18.266l7.187,10.779l7.485-100.91l5.091,114.984l6.887-24.554h24.41 c3.239,0,14.816-16.769,20.206-16.769s11.08,16.47,13.475,16.47c2.845,0,26.665,0,26.665,0l27.757,0 c2.296,0,12.875-10.181,20.062-10.181c7.186,0,10.831,10.181,12.577,10.181h18.266l7.187,10.779l7.485-100.91l5.091,114.984 l6.888-24.555h24.41c3.24,0,14.817-16.768,20.207-16.768s11.079,16.469,13.474,16.469c2.845,0,26.666,0,26.666,0h27.813 c2.297,0,12.877-10.181,20.063-10.181s10.829,10.181,12.576,10.181h18.265l7.188,10.779l7.485-100.91l5.092,114.984l6.887-24.555 h24.409c3.238,0,14.816-16.768,20.206-16.768s11.08,16.469,13.476,16.469c2.845,0,26.664,0,26.664,0h27.815 c2.296,0,12.875-10.181,20.063-10.181c7.187,0,10.829,10.181,12.576,10.181h18.265l7.188,10.779l7.486-100.91l5.091,114.984 l6.887-24.555h24.409c3.238,0,14.816-16.768,20.206-16.768s11.079,16.469,13.476,16.469c2.846,0,26.664,0,26.664,0"
-                   fill="none" stroke="lime" stroke-width="2">
-                   <animate attributeName="stroke-dashoffset" from="3000" to="0" dur="5s" linear="true" repeatCount="indefinite"/>
-             </path>
-         </svg>`,
-        injured: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/>
-             <path d="M 0,114.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5"
-                  fill="none" stroke="#FFD700" stroke-width="2">
-                 <animate attributeName="stroke-dashoffset" from="3000" to="0" dur="5s" linear="true" repeatCount="indefinite"/>
-             </path>
-         </svg>`,
-        critical: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/>
-             <path d="M 0,114.5 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9"
-                  fill="none" stroke="#FF851B" stroke-width="2">
-                  <animate attributeName="stroke-dashoffset" from="3000" to="0" dur="5s" linear="true" repeatCount="indefinite"/>
-             </path>
-         </svg>`,
-        broken: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/>
-             <path d="M0,100 H800" fill="none" stroke="#FF4136" stroke-width="4">
-                  <animate attributeName="stroke-dashoffset" from="800" to="0" dur="1.8s" linear="true" repeatCount="indefinite"/>
-             </path>
-         </svg>`,
-        dead: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/>
-            <path d="M0,100 H800" fill="none" stroke="#555555" stroke-width="4"></path>
-         </svg>`,
+    // (No changes from previous version)
+    const svgStates = { healthy: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/> <path d="M17.902,114.475h26.949c2.296,0,12.876-10.182,20.063-10.182 c7.186,0,10.83,10.182,12.576,10.182h18.266l7.187,10.779l7.485-100.91l5.091,114.984l6.887-24.554h24.41 c3.239,0,14.816-16.769,20.206-16.769s11.08,16.47,13.475,16.47c2.845,0,26.665,0,26.665,0l27.757,0 c2.296,0,12.875-10.181,20.062-10.181c7.186,0,10.831,10.181,12.577,10.181h18.266l7.187,10.779l7.485-100.91l5.091,114.984 l6.888-24.555h24.41c3.24,0,14.817-16.768,20.207-16.768s11.079,16.469,13.474,16.469c2.845,0,26.666,0,26.666,0h27.813 c2.297,0,12.877-10.181,20.063-10.181s10.829,10.181,12.576,10.181h18.265l7.188,10.779l7.485-100.91l5.092,114.984l6.887-24.555 h24.409c3.238,0,14.816-16.768,20.206-16.768s11.08,16.469,13.476,16.469c2.845,0,26.664,0,26.664,0h27.815 c2.296,0,12.875-10.181,20.063-10.181c7.187,0,10.829,10.181,12.576,10.181h18.265l7.188,10.779l7.486-100.91l5.091,114.984 l6.887-24.555h24.409c3.238,0,14.816-16.768,20.206-16.768s11.079,16.469,13.476,16.469c2.846,0,26.664,0,26.664,0" fill="none" stroke="lime" stroke-width="2"><animate attributeName="stroke-dashoffset" from="3000" to="0" dur="5s" linear="true" repeatCount="indefinite"/></path></svg>`, injured: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/> <path d="M 0,114.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5 h 8.7 c 1.3,0 2.5,-1.1 4.4,-1.7 0.8,-0.2 2.8,1.9 3.5,1.7 0.7,-0.2 1.1,-1.9 1.9,-1.5 2.3,1.1 2,-0.1 2.3,-0.1 0.3,0 1.6,0.6 2.3,0.8 0.7,0.2 0.7,0.1 1.5,0.3 0.8,0.2 3,-1.2 4.1,-1.1 1.1,0.1 2.1,1.1 3.7,0.9 3.7,-0.5 4.3,1.5 4.3,1.5 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 1,-34.1 3.7,-34.4 0.7,-0.1 2.2,-1.4 2.9,-1.5 0.7,0 0.6,1.1 1.3,1 0.7,-0.1 2.4,0.9 3.1,0.8 0.7,-0.1 0.4,-1.2 1,-1.3 0.7,-0.1 2.1,-0.8 2.8,-0.8 0.6,-0.1 0.4,0.5 0.9,0.4 0.5,-0.1 0.6,0.9 1.1,0.9 0.4,0 1.3,-1.1 1.6,-1.1 0.3,0 7.3,-17.9 15,-17.4 7.7,0.6 7,17.7 16.7,17.7 1.2,0 3,-1.9 3.1,-0.01 0.1,1.5 2.4,-0.7 2.9,-0.03 0.8,1.2 2.5,0.2 3.1,0.2 0.6,0 0.4,0.2 0.5,-0.3 0.4,-1.2 0.8,0 1.1,0 0.3,0 0.5,0 0.7,-0.1 0.2,0 0.3,0 0.4,-0.1 c 0.1,0 0.1,-0.01 0.1,-0.01 h 17.5" fill="none" stroke="#FFD700" stroke-width="2"><animate attributeName="stroke-dashoffset" from="3000" to="0" dur="5s" linear="true" repeatCount="indefinite"/></path> </svg>`,
+        critical: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/> <path d="M 0,114.5 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9 h 11.5 c 5.2,0 3.8,-7 8.1,-6.7 4.3,0.3 1.9,7.7 8.2,7 c 3.7,-0.5 5.2,0.9 5.2,0.9 l 2.6,4.8 3.9,-66 1.2,95.8 c 0,0 2.2,-28.6 3.9,-35 c 1.7,-6.4 3,-23.8 7.6,-30.8 c 4,-6.1 8.8,-10 12.3,-8.6 c 3.5,1.4 6.5,15.2 9.7,21 c 3.2,5.9 7,17.7 16.7,17.7 c 9.8,0 11.9,-0.3 11.9,-0.3 h 17.9" fill="none" stroke="#FF851B" stroke-width="2"><animate attributeName="stroke-dashoffset" from="3000" to="0" dur="5s" linear="true" repeatCount="indefinite"/></path> </svg>`,
+        broken: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/> <path d="M0,100 H800" fill="none" stroke="#FF4136" stroke-width="4"><animate attributeName="stroke-dashoffset" from="800" to="0" dur="1.8s" linear="true" repeatCount="indefinite"/></path> </svg>`,
+        dead: `<svg width="100%" height="100%" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid slice"><rect width="100%" height="100%" fill="black"/> <path d="M0,100 H800" fill="none" stroke="#555555" stroke-width="4"></path> </svg>`,
     };
 
     // --- Character Data Store ---
     let characters = {
         char1: { name: "HUDSON", hpMax: 10, hpCurrent: 10, initiative: 8, stress: 0, radiation: 0, conditions: [], status: "Healthy", svgStateKey: 'healthy' },
         npc1: { name: "APONE", hpMax: 12, hpCurrent: 12, initiative: 7, stress: 0, radiation: 0, conditions: [], status: "Healthy", svgStateKey: 'healthy' },
-        xeno1: { name: "STALKER", hpMax: 15, hpCurrent: 15, initiative: 10, stress: null, radiation: null, conditions: [], status: "Healthy", svgStateKey: 'healthy' },
-        char2: { name: "VASQUEZ", hpMax: 11, hpCurrent: 5, initiative: 9, stress: 2, radiation: 0, conditions: ["Exhausted"], status: "Injured", svgStateKey: 'injured' },
+        xeno1: { name: "STALKER", hpMax: 15, hpCurrent: 15, initiative: 3, stress: null, radiation: null, conditions: [], status: "Healthy", svgStateKey: 'healthy' }, // Lower init for testing sort
+        char2: { name: "VASQUEZ", hpMax: 11, hpCurrent: 5, initiative: 5, stress: 2, radiation: 0, conditions: ["Exhausted"], status: "Injured", svgStateKey: 'injured' }, // Lower init for testing sort
     };
-    let nextCombatantIdCounter = Object.keys(characters).length + 1; // Initialize counter based on initial characters
-
-    // State variable for gradient bar dragging
-    let isDraggingHpBar = false;
-    let currentDragCharId = null;
+    let nextCombatantIdCounter = Object.keys(characters).length + 1;
+    let isDraggingHpBar = false; let currentDragCharId = null;
 
     // --- Functions ---
-    function generateNewCombatantId() {
-        let newId; do { newId = `combatant${nextCombatantIdCounter++}`; } while (characters[newId]); return newId;
-    }
-
-    function addCombatant() {
-        const newId = generateNewCombatantId();
-        characters[newId] = { name: "NEW MARINE", hpMax: 10, hpCurrent: 10, initiative: 1, stress: 0, radiation: 0, conditions: [], status: "Healthy", svgStateKey: 'healthy' };
-        renderDashboard();
-    }
-
-     function removeCombatant(charId) {
-         const character = characters[charId]; if (!character) return;
-         if (confirm(`Are you sure you want to remove ${character.name}?`)) { delete characters[charId]; renderDashboard(); }
-     }
-
-    function showNameInput(charId, inputElementId, displayElementId) {
-        const inputEl = document.getElementById(inputElementId); const displayEl = document.getElementById(displayElementId); if (!inputEl || !displayEl) return;
-        inputEl.value = characters[charId].name; displayEl.style.display = 'none'; inputEl.style.display = 'inline-block'; inputEl.focus(); inputEl.select();
-    }
-
-    function hideNameInput(charId, inputElementId, displayElementId, saveChanges) {
-        const inputEl = document.getElementById(inputElementId); const displayEl = document.getElementById(displayElementId); if (!inputEl || !displayEl) return;
-        inputEl.style.display = 'none'; displayEl.style.display = 'inline-block'; // Hide input, show display immediately
-        if (saveChanges && inputEl.value.trim() !== characters[charId].name ) { updateStatus(charId, 'setName', inputEl.value); } // Update data if changed
-        else { renderCharacterCard(charId); } // Re-render to ensure display text is correct if no save or no change
-    }
-
-
-    /**
-     * NEW: Handles mouse interactions on the health monitor for HP bar dragging.
-     */
-    function handleHpBarInteraction(event, charId, type) {
-        const character = characters[charId];
-        const monitor = event.currentTarget; // The .health-monitor div
-
-        // Prevent interaction if character is dead or if it's not the primary mouse button
-        if (!character || character.status === 'Dead' || event.button !== 0) {
-             isDraggingHpBar = false; // Ensure dragging stops if button released outside or is wrong button
-             currentDragCharId = null;
-             monitor.style.cursor = 'crosshair'; // Reset cursor
-             return;
-        }
-
-        const rect = monitor.getBoundingClientRect();
-        const barPadding = 5; // Matches CSS padding for bar area
-        const barHeight = 12; // Matches CSS height
-        const barBottom = rect.height - barPadding;
-        const barTop = barBottom - barHeight;
-
-        // Only interact if mouse is within the visual Y-bounds of the bar
-        if (event.clientY < rect.top + barTop || event.clientY > rect.top + barBottom) {
-             if (isDraggingHpBar && type !== 'drag') { // If dragging and mouse leaves bar area vertically
-                 isDraggingHpBar = false; currentDragCharId = null; monitor.style.cursor = 'crosshair';
-             }
-            return; // Ignore clicks/drags outside the bar's vertical area
-        }
-
-        // Calculate position and HP based on horizontal position within bar area
-        const x = event.clientX - rect.left - barPadding;
-        const barWidth = monitor.clientWidth - (barPadding * 2);
-        let hpPercent = Math.max(0, Math.min(100, (x / barWidth) * 100));
-        let newHp = Math.round((hpPercent / 100) * character.hpMax);
-
-        switch (type) {
-            case 'start': // mousedown
-                isDraggingHpBar = true;
-                currentDragCharId = charId;
-                updateStatus(charId, 'setCurrentHp', newHp); // Set HP on initial click
-                monitor.style.cursor = 'grabbing';
-                // Prevent text selection during drag
-                event.preventDefault();
-                break;
-            case 'drag': // mousemove
-                if (isDraggingHpBar && currentDragCharId === charId) {
-                     updateStatus(charId, 'setCurrentHp', newHp);
-                 }
-                break;
-            case 'stop': // mouseup or mouseleave
-                 if (isDraggingHpBar && currentDragCharId === charId) {
-                    isDraggingHpBar = false;
-                    currentDragCharId = null;
-                    monitor.style.cursor = 'crosshair';
-                 }
-                break;
-        }
-    }
-
-
-     function setAnimationSpeed(monitorElement, characterData) {
-         const animateElement = monitorElement.querySelector('svg path animate');
-         if (animateElement) {
-             let targetDuration = '5s';
-             switch (characterData.status.toLowerCase()) {
-                 case 'injured':  targetDuration = '4s'; break;
-                 case 'critical': targetDuration = '2.8s'; break;
-                 case 'broken':   targetDuration = '2.5s'; break;
-             }
-             if (animateElement.getAttribute('dur') !== targetDuration) {
-                 animateElement.setAttribute('dur', targetDuration);
-             }
-         }
-     }
+    function generateNewCombatantId() { let newId; do { newId = `combatant${nextCombatantIdCounter++}`; } while (characters[newId]); return newId; }
+    function addCombatant() { const newId = generateNewCombatantId(); characters[newId] = { name: "NEW MARINE", hpMax: 10, hpCurrent: 10, initiative: 10, stress: 0, radiation: 0, conditions: [], status: "Healthy", svgStateKey: 'healthy' }; renderDashboard(); } // Default new to init 10
+    function removeCombatant(charId) { const c = characters[charId]; if (!c) return; if (confirm(`Remove ${c.name}?`)) { delete characters[charId]; renderDashboard(); } }
+    function showNameInput(charId, inputId, displayId) { const i = document.getElementById(inputId); const d = document.getElementById(displayId); if (!i||!d) return; i.value = characters[charId].name; d.style.display = 'none'; i.style.display = 'inline-block'; i.focus(); i.select(); }
+    function hideNameInput(charId, inputId, displayId, save) { const i = document.getElementById(inputId); const d = document.getElementById(displayId); if (!i||!d) return; i.style.display = 'none'; d.style.display = 'inline-block'; if (save && i.value.trim() !== characters[charId].name ) { updateStatus(charId, 'setName', i.value); } else { renderCharacterCard(charId); } }
+    function setAnimationSpeed(monitorElement, charData) { const anim = monitorElement.querySelector('svg path animate'); if (anim) { let dur = '5s'; switch (charData.status.toLowerCase()) { case 'injured': dur = '4s'; break; case 'critical': dur = '2.8s'; break; case 'broken': case 'incapacitated': dur = '2.5s'; break; } if (anim.getAttribute('dur') !== dur) { anim.setAttribute('dur', dur); } } }
+    function handleHpBarInteraction(event, charId, type) { const c = characters[charId]; const mon = event.currentTarget; if (!c || c.status === 'Dead' || event.button !== 0) { isDraggingHpBar = false; currentDragCharId = null; mon.style.cursor = 'crosshair'; return; } const r = mon.getBoundingClientRect(); const pad = 5; const h = 12; const bot = r.height - pad; const top = bot - h; if (event.clientY < r.top + top - pad || event.clientY > r.top + bot + pad ) { if (isDraggingHpBar && type !== 'drag') { isDraggingHpBar = false; currentDragCharId = null; mon.style.cursor = 'crosshair'; } return; } const x = event.clientX - r.left - pad; const w = mon.clientWidth - (pad * 2); let hpPct = Math.max(0, Math.min(100, (x / w) * 100)); let hp = Math.round((hpPct / 100) * c.hpMax); switch (type) { case 'start': isDraggingHpBar = true; currentDragCharId = charId; updateStatus(charId, 'setCurrentHp', hp); mon.style.cursor = 'grabbing'; event.preventDefault(); break; case 'drag': if (isDraggingHpBar && currentDragCharId === charId) { updateStatus(charId, 'setCurrentHp', hp); } break; case 'stop': if (isDraggingHpBar && currentDragCharId === charId) { isDraggingHpBar = false; currentDragCharId = null; mon.style.cursor = 'crosshair'; } break; } }
 
     function renderCharacterCard(charId) {
         const character = characters[charId]; const card = document.getElementById(charId); if (!character || !card) return;
-
-        // Update status class
-        const statuses = ['healthy', 'injured', 'critical', 'broken', 'dead']; statuses.forEach(s => card.classList.remove(`status-${s}`)); if (character.status) { card.classList.add(`status-${character.status.toLowerCase()}`); }
-
-        // Update Name Display/Input state
-        const nameDisplay = card.querySelector('.char-name-display'); const nameInput = card.querySelector('.char-name-edit');
-        if (nameDisplay && nameInput && document.activeElement !== nameInput) { nameDisplay.textContent = character.name.toUpperCase(); nameInput.value = character.name; nameDisplay.style.display = 'inline-block'; nameInput.style.display = 'none'; }
-        else if (nameDisplay && nameInput && document.activeElement === nameInput) { nameDisplay.style.display = 'none'; }
-
-        // Update Status Overlay text
+        const statuses = ['healthy', 'injured', 'critical', 'broken', 'incapacitated', 'dead']; statuses.forEach(s => card.classList.remove(`status-${s}`)); if (character.status) { card.classList.add(`status-${character.status.toLowerCase()}`); }
+        const nameDisplay = card.querySelector('.char-name-display'); const nameInput = card.querySelector('.char-name-edit'); if (nameDisplay && nameInput && document.activeElement !== nameInput) { nameDisplay.textContent = character.name.toUpperCase(); nameInput.value = character.name; nameDisplay.style.display = 'inline-block'; nameInput.style.display = 'none'; } else if (nameDisplay && nameInput && document.activeElement === nameInput) { nameDisplay.style.display = 'none'; }
         const statusOverlay = card.querySelector('.status-overlay'); if(statusOverlay) statusOverlay.textContent = character.status.toUpperCase();
-
-        // Update number inputs (check focus)
-        const maxHpInput = card.querySelector('.input-hp-max'); if (document.activeElement !== maxHpInput) maxHpInput.value = character.hpMax;
-        const currentHpInput = card.querySelector('.input-hp-current'); if (document.activeElement !== currentHpInput) currentHpInput.value = character.hpCurrent;
-        const initiativeInput = card.querySelector('.input-initiative'); if (document.activeElement !== initiativeInput) initiativeInput.value = character.initiative;
-        const stressInput = card.querySelector('.input-stress'); if (stressInput && document.activeElement !== stressInput) stressInput.value = character.stress ?? '';
-        const radiationInput = card.querySelector('.input-radiation'); if (radiationInput && document.activeElement !== radiationInput) radiationInput.value = character.radiation ?? '';
-        if (stressInput) stressInput.disabled = (character.stress === null); if (radiationInput) radiationInput.disabled = (character.radiation === null);
-
-        // Update HP Gradient Bar mask
-        const hpPercent = character.hpMax > 0 ? (character.hpCurrent / character.hpMax) * 100 : 0;
-        const maskElement = card.querySelector('.hp-gradient-mask'); if (maskElement) { maskElement.style.width = `${100 - hpPercent}%`; }
-
-        // Update health monitor SVG
+        const maxHpInput = card.querySelector('.input-hp-max'); if (maxHpInput && document.activeElement !== maxHpInput) maxHpInput.value = character.hpMax;
+        const currentHpInput = card.querySelector('.input-hp-current'); if (currentHpInput && document.activeElement !== currentHpInput) currentHpInput.value = character.hpCurrent;
+        const initiativeInput = card.querySelector('.input-initiative'); if (initiativeInput && document.activeElement !== initiativeInput) initiativeInput.value = character.initiative;
+        const stressInput = card.querySelector('.input-stress'); if (stressInput && document.activeElement !== stressInput) stressInput.value = character.stress ?? ''; if (stressInput) stressInput.disabled = (character.stress === null);
+        const radiationInput = card.querySelector('.input-radiation'); if (radiationInput && document.activeElement !== radiationInput) radiationInput.value = character.radiation ?? ''; if (radiationInput) radiationInput.disabled = (character.radiation === null);
+        const hpPercent = character.hpMax > 0 ? (character.hpCurrent / character.hpMax) * 100 : 0; const maskElement = card.querySelector('.hp-gradient-mask'); if (maskElement) { maskElement.style.width = `${100 - hpPercent}%`; }
         const monitor = card.querySelector('.health-monitor'); const svgContainer = card.querySelector('.svg-container'); const svgKey = character.svgStateKey;
-        if (monitor && svgContainer && monitor.dataset.currentSvgKey !== svgKey) {
-            requestAnimationFrame(() => { if(document.getElementById(charId)) { svgContainer.innerHTML = svgStates[svgKey] || svgStates['healthy']; monitor.dataset.currentSvgKey = svgKey; setAnimationSpeed(monitor, character); } });
-        } else if (monitor) { setAnimationSpeed(monitor, character); }
-
-        // Update Condition Toggle Buttons state
-         const conditions = ["Starving", "Dehydrated", "Exhausted", "Freezing"];
-         conditions.forEach(cond => { const btn = card.querySelector(`#cond-${cond.toLowerCase()}-${charId}`); if (btn) { if (character.conditions && character.conditions.includes(cond)) { btn.classList.add('condition-active'); } else { btn.classList.remove('condition-active'); } } });
+        if (monitor && svgContainer && monitor.dataset.currentSvgKey !== svgKey) { requestAnimationFrame(() => { if(document.getElementById(charId)) { svgContainer.innerHTML = svgStates[svgKey] || svgStates['healthy']; monitor.dataset.currentSvgKey = svgKey; setAnimationSpeed(monitor, character); } }); } else if (monitor) { setAnimationSpeed(monitor, character); }
+        const conditions = ["Starving", "Dehydrated", "Exhausted", "Freezing", "Incapacitated"]; conditions.forEach(cond => { const btnIdSuffix = cond.toLowerCase().replace(/\s+/g, '-'); const btn = card.querySelector(`#cond-${btnIdSuffix}-${charId}`); if (btn) { if (character.conditions?.includes(cond)) { btn.classList.add('condition-active'); } else { btn.classList.remove('condition-active'); } } });
+        const incapBtn = card.querySelector('.mark-incapacitated-btn'); if(incapBtn){ if(character.conditions?.includes('Incapacitated')){ incapBtn.classList.add('condition-active'); } else { incapBtn.classList.remove('condition-active'); } }
     }
 
+     /**
+      * Creates the HTML structure for a single character card.
+      * UPDATED: Layout below monitor adjusted, +/- for Init added, Actions/Conditions repositioned
+      */
      function createCharacterCardElement(charId) {
          const character = characters[charId]; if (!character) return null;
          const card = document.createElement('div'); card.className = 'character-card'; card.id = charId;
@@ -392,115 +232,124 @@
 
          card.innerHTML = `
             <button class="remove-button" onclick="removeCombatant('${charId}')" title="Remove ${character.name}">X</button>
-            <div class="health-monitor" data-current-svg-key=""
-                onmousedown="handleHpBarInteraction(event, '${charId}', 'start')"
-                onmousemove="handleHpBarInteraction(event, '${charId}', 'drag')"
-                onmouseup="handleHpBarInteraction(event, '${charId}', 'stop')"
-                onmouseleave="handleHpBarInteraction(event, '${charId}', 'stop')"
-                >
-                <div class="hp-gradient-bar"></div>
-                <div class="hp-gradient-mask"></div>
+            <div class="health-monitor" data-current-svg-key="" onmousedown="handleHpBarInteraction(event, '${charId}', 'start')" onmousemove="handleHpBarInteraction(event, '${charId}', 'drag')" onmouseup="handleHpBarInteraction(event, '${charId}', 'stop')" onmouseleave="handleHpBarInteraction(event, '${charId}', 'stop')">
+                <div class="hp-gradient-bar"></div> <div class="hp-gradient-mask"></div>
                 <div class="svg-container"></div>
                 <div class="monitor-text-overlay">
-                    <div>
-                        <span class="char-name-display" id="${nameDisplayId}" onclick="showNameInput('${charId}', '${nameInputId}', '${nameDisplayId}')" title="Click to edit name">
-                            ${character.name.toUpperCase()}
-                        </span>
-                        <input type="text" class="char-name-edit" id="${nameInputId}" value="${character.name}"
-                               onblur="hideNameInput('${charId}', '${nameInputId}', '${nameDisplayId}', true)"
-                               onkeydown="if(event.key === 'Enter') { this.blur(); } else if (event.key === 'Escape') { hideNameInput('${charId}', '${nameInputId}', '${nameDisplayId}', false); this.blur(); }"
-                               placeholder="ENTER NAME" style="display: none;">
-                    </div>
+                    <div><span class="char-name-display" id="${nameDisplayId}" onclick="showNameInput('${charId}', '${nameInputId}', '${nameDisplayId}')" title="Click to edit name">${character.name.toUpperCase()}</span><input type="text" class="char-name-edit" id="${nameInputId}" value="${character.name}" onblur="hideNameInput('${charId}', '${nameInputId}', '${nameDisplayId}', true)" onkeydown="if(event.key === 'Enter') { this.blur(); } else if (event.key === 'Escape') { hideNameInput('${charId}', '${nameInputId}', '${nameDisplayId}', false); this.blur(); }" placeholder="ENTER NAME" style="display: none;"></div>
                     <span class="status-overlay">${character.status.toUpperCase()}</span>
                 </div>
             </div>
-            <div class="info-grid">
-                 <div>
-                    <label for="max-hp-${charId}">HP MAX:</label>
-                    <input type="number" id="max-hp-${charId}" class="input-hp-max" value="${character.hpMax}" min="1" onchange="updateStatus('${charId}', 'setMaxHp', this.value)">
-                 </div>
-                 <div>
-                    <label for="init-${charId}">INIT:</label>
-                    <input type="number" id="init-${charId}" class="input-initiative" value="${character.initiative}" min="1" max="10" onchange="updateStatus('${charId}', 'setInitiative', this.value)">
-                 </div>
-                  <div class="hp-current-line" style="grid-column: 1 / -1;">
-                     <label for="current-hp-${charId}">HP CURRENT:</label>
-                     <input type="number" id="current-hp-${charId}" class="input-hp-current" value="${character.hpCurrent}" min="0" onchange="updateStatus('${charId}', 'setCurrentHp', this.value)">
-                  </div>
-                   <div>
-                      <label for="stress-${charId}">STRESS:</label>
-                      <input type="number" id="stress-${charId}" class="input-stress" value="${character.stress ?? ''}" min="0" max="10" onchange="updateStatus('${charId}', 'setStress', this.value)" ${character.stress === null ? 'disabled' : ''}>
-                   </div>
-                    <div>
-                      <label for="rad-${charId}">RAD:</label>
-                      <input type="number" id="rad-${charId}" class="input-radiation" value="${character.radiation ?? ''}" min="0" max="10" onchange="updateStatus('${charId}', 'setRadiation', this.value)" ${character.radiation === null ? 'disabled' : ''}>
-                   </div>
+
+             <div class="hp-controls">
+                <div class="hp-adjust"> <span> <button onclick="updateStatus('${charId}', 'decrementHp', 1)" title="Decrease HP by 1">-</button> <label> ADJUST HP </label> <button onclick="updateStatus('${charId}', 'incrementHp', 1)" title="Increase HP by 1">+</button> </span> </div>
+                <div class="hp-inputs-wrapper">
+                     <div class="hp-input-group"><label for="max-hp-${charId}">MAX:</label> <input type="number" id="max-hp-${charId}" class="input-hp-max" value="${character.hpMax}" min="1" onchange="updateStatus('${charId}', 'setMaxHp', this.value)"></div>
+                     <div class="hp-input-group"><label for="current-hp-${charId}">CURRENT:</label> <input type="number" id="current-hp-${charId}" class="input-hp-current" value="${character.hpCurrent}" min="0" onchange="updateStatus('${charId}', 'setCurrentHp', this.value)"></div>
+                </div>
             </div>
-            <div class="controls">
-                 <div class="hp-adjust">
-                     <label>ADJUST HP:</label>
-                     <span>
-                        <button onclick="updateStatus('${charId}', 'decrementHp', 1)" title="Decrease HP by 1">-</button>
-                        <button onclick="updateStatus('${charId}', 'incrementHp', 1)" title="Increase HP by 1">+</button>
-                    </span>
+
+            <div class="info-grid">
+                <div class="stat-adjust">
+                    <label for="init-${charId}">INIT:</label>
+                    <div class="value-adjust-wrapper">
+                         <button onclick="updateStatus('${charId}', 'decrementInitiative', 1)" title="Decrease Initiative">-</button>
+                         <input type="number" id="init-${charId}" class="input-initiative" value="${character.initiative}" min="1" max="10" onchange="updateStatus('${charId}', 'setInitiative', this.value)">
+                         <button onclick="updateStatus('${charId}', 'incrementInitiative', 1)" title="Increase Initiative">+</button>
+                    </div>
+                </div>
+                <div class="stat-adjust">
+                  <label for="stress-${charId}">STRESS:</label>
+                  <div class="value-adjust-wrapper">
+                     <button onclick="updateStatus('${charId}', 'decrementStress', 1)" ${character.stress === null ? 'disabled' : ''}>-</button>
+                     <input type="number" id="stress-${charId}" class="input-stress" value="${character.stress ?? ''}" min="0" max="10" onchange="updateStatus('${charId}', 'setStress', this.value)" ${character.stress === null ? 'disabled' : ''}>
+                     <button onclick="updateStatus('${charId}', 'incrementStress', 1)" ${character.stress === null ? 'disabled' : ''}>+</button>
+                  </div>
+               </div>
+                <div class="stat-adjust">
+                  <label for="rad-${charId}">RAD:</label>
+                   <div class="value-adjust-wrapper">
+                     <button onclick="updateStatus('${charId}', 'decrementRadiation', 1)" ${character.radiation === null ? 'disabled' : ''}>-</button>
+                     <input type="number" id="rad-${charId}" class="input-radiation" value="${character.radiation ?? ''}" min="0" max="10" onchange="updateStatus('${charId}', 'setRadiation', this.value)" ${character.radiation === null ? 'disabled' : ''}>
+                     <button onclick="updateStatus('${charId}', 'incrementRadiation', 1)" ${character.radiation === null ? 'disabled' : ''}>+</button>
+                   </div>
+               </div>
+            </div>
+
+            <div class="condition-action-panel">
+                 <div class="actions-stack"> <button class="mark-incapacitated-btn" id="cond-incapacitated-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Incapacitated')" title="Toggle Incapacitated Status">Incapacitated</button>
+                      <button class="mark-dead-btn" onclick="updateStatus('${charId}', 'setDead', true)" title="Mark character as Dead">Mark Dead</button>
                  </div>
-                 <div class="conditions-area">
-                     <label>CONDITIONS:</label>
-                     <div class="condition-toggles">
-                         <button class="condition-toggle" id="cond-starving-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Starving')">Starving</button>
-                         <button class="condition-toggle" id="cond-dehydrated-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Dehydrated')">Dehydrated</button>
-                         <button class="condition-toggle" id="cond-exhausted-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Exhausted')">Exhausted</button>
-                         <button class="condition-toggle" id="cond-freezing-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Freezing')">Freezing</button>
-                     </div>
-                 </div>
-                 <div>
-                    <label>ACTION:</label>
-                    <button onclick="updateStatus('${charId}', 'setDead', true)" title="Mark character as Dead">MARK DEAD</button>
-                 </div>
+                  <div class="condition-grid"> <button class="condition-toggle" id="cond-starving-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Starving')">Starving</button>
+                      <button class="condition-toggle" id="cond-dehydrated-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Dehydrated')">Dehydrated</button>
+                      <button class="condition-toggle" id="cond-exhausted-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Exhausted')">Exhausted</button>
+                      <button class="condition-toggle" id="cond-freezing-${charId}" onclick="updateStatus('${charId}', 'toggleCondition', 'Freezing')">Freezing</button>
+                  </div>
             </div>
         `;
          return card;
      }
 
+    /**
+     * Sorts characters by initiative (ASCENDING) and renders all cards.
+     * UPDATED: Sort order a - b
+     */
     function renderDashboard() {
         const dashboardElement = document.getElementById('dashboard'); if (!dashboardElement) { console.error("Dashboard element not found!"); return; }
         const activeElement = document.activeElement; const activeElementId = activeElement ? activeElement.id : null; const activeElementValue = activeElement ? activeElement.value : null; const activeElementSelectionStart = activeElement ? activeElement.selectionStart : null; const activeElementSelectionEnd = activeElement ? activeElement.selectionEnd : null;
         dashboardElement.innerHTML = '';
-        const sortedCharIds = Object.keys(characters).sort((a, b) => { const initA = Number(characters[a]?.initiative) || 0; const initB = Number(characters[b]?.initiative) || 0; return initB - initA; });
+
+        // ASCENDING SORT (Lowest initiative first)
+        const sortedCharIds = Object.keys(characters).sort((a, b) => {
+            const initA = Number(characters[a]?.initiative) || 0; const initB = Number(characters[b]?.initiative) || 0;
+            return initA - initB; // Use a - b for ascending
+        });
+
         sortedCharIds.forEach(charId => { const cardElement = createCharacterCardElement(charId); if (cardElement) { dashboardElement.appendChild(cardElement); renderCharacterCard(charId); } });
-         if (activeElementId) { const elementToRestoreFocus = document.getElementById(activeElementId); if (elementToRestoreFocus) { elementToRestoreFocus.focus(); if (elementToRestoreFocus.tagName === 'INPUT' && activeElementValue !== null && typeof elementToRestoreFocus.value !== 'undefined') { /* Value restore omitted */ } if (activeElementSelectionStart !== null && typeof elementToRestoreFocus.setSelectionRange === 'function') { try { elementToRestoreFocus.setSelectionRange(activeElementSelectionStart, activeElementSelectionEnd); } catch (e) { console.warn("Could not restore selection range.", e); } } } }
+        if (activeElementId) { const el = document.getElementById(activeElementId); if (el) { el.focus(); if (el.tagName === 'INPUT' && activeElementValue !== null && typeof el.value !== 'undefined') { /* Value restore */ } if (activeElementSelectionStart !== null && typeof el.setSelectionRange === 'function') { try { el.setSelectionRange(activeElementSelectionStart, activeElementSelectionEnd); } catch (e) { console.warn("Could not restore selection range.", e); } } } }
     }
 
+    /**
+     * Central function to update character data and trigger redraws.
+     * UPDATED: Added +/- Init actions, Incapacitated status logic
+     */
     function updateStatus(charId, action, value) {
         const character = characters[charId]; if (!character) return;
-        const allowedIfDead = ['setInitiative', 'setMaxHp', 'setName']; // Removed stress/rad/condition changes if dead
-        if (character.status === 'Dead' && !allowedIfDead.includes(action)) { console.log(`${character.name} is Dead. No changes allowed except Name/Initiative/MaxHP.`); if (action === 'setCurrentHp') { const inputElement = document.getElementById(`current-hp-${charId}`); if (inputElement) inputElement.value = character.hpCurrent; } return; }
-        let needsDashboardSort = false; const previousStatus = character.status;
+        const allowedIfDead = ['setInitiative', 'setMaxHp', 'setName'];
+        if (character.status === 'Dead' && !allowedIfDead.includes(action)) { console.log(`${character.name} is Dead. Changes limited.`); /* Revert input logic */ return; }
+        let needsDashboardSort = false; const previousStatus = character.status; let statusChangedByCondition = false;
 
         switch (action) {
              case 'setName': if(typeof value === 'string') { character.name = value.trim() || "Unnamed"; } break;
-             case 'setMaxHp': const newMaxHp = parseInt(value, 10); if (!isNaN(newMaxHp) && newMaxHp >= 1) { character.hpMax = newMaxHp; character.hpCurrent = Math.min(character.hpCurrent, character.hpMax); } else { console.warn(`Invalid Max HP value: ${value}`); const inputElement = document.getElementById(`max-hp-${charId}`); if (inputElement) inputElement.value = character.hpMax; } break;
-             case 'setCurrentHp': const newCurrentHp = parseInt(value, 10); if (!isNaN(newCurrentHp)) { if (character.status === 'Dead') break; character.hpCurrent = Math.max(0, Math.min(newCurrentHp, character.hpMax)); } else { console.warn(`Invalid Current HP value: ${value}`); const inputElement = document.getElementById(`current-hp-${charId}`); if (inputElement) inputElement.value = character.hpCurrent; } break;
-             case 'incrementHp': if (character.status === 'Dead' || character.status === 'Broken') { console.log(`${character.name} is ${character.status}, cannot increment HP.`); break; } character.hpCurrent = Math.min(character.hpMax, character.hpCurrent + 1); break;
+             case 'setMaxHp': const newMaxHp = parseInt(value, 10); if (!isNaN(newMaxHp) && newMaxHp >= 1) { character.hpMax = newMaxHp; character.hpCurrent = Math.min(character.hpCurrent, character.hpMax); } else { console.warn(`Invalid Max HP: ${value}`); const iEl = document.getElementById(`max-hp-${charId}`); if(iEl) iEl.value = character.hpMax; } break;
+             case 'setCurrentHp': const newCurrentHp = parseInt(value, 10); if (!isNaN(newCurrentHp)) { if (character.status === 'Dead') break; character.hpCurrent = Math.max(0, Math.min(newCurrentHp, character.hpMax)); } else { console.warn(`Invalid Current HP: ${value}`); const iEl = document.getElementById(`current-hp-${charId}`); if(iEl) iEl.value = character.hpCurrent; } break;
+             case 'incrementHp': if (character.status === 'Dead' || character.status === 'Broken' || character.status === 'Incapacitated' ) break; character.hpCurrent = Math.min(character.hpMax, character.hpCurrent + 1); break;
              case 'decrementHp': if (character.status === 'Dead') break; character.hpCurrent = Math.max(0, character.hpCurrent - 1); break;
-             case 'setInitiative': const newInitiative = parseInt(value, 10); if (!isNaN(newInitiative) && newInitiative >= 1 && newInitiative <= 10) { if(character.initiative !== newInitiative) { character.initiative = newInitiative; needsDashboardSort = true; } } else { console.warn(`Invalid Initiative value: ${value}`); const inputElement = document.getElementById(`init-${charId}`); if (inputElement) inputElement.value = character.initiative; } break;
-             case 'setStress': const newStress = parseInt(value, 10); if (character.stress !== null && !isNaN(newStress)) { character.stress = Math.max(0, Math.min(newStress, 10)); } else if (character.stress !== null) { console.warn(`Invalid Stress value: ${value}`); const inputElement = document.getElementById(`stress-${charId}`); if (inputElement) inputElement.value = character.stress; } break;
-             case 'setRadiation': const newRad = parseInt(value, 10); if (character.radiation !== null && !isNaN(newRad)) { character.radiation = Math.max(0, Math.min(newRad, 10)); } else if (character.radiation !== null) { console.warn(`Invalid Radiation value: ${value}`); const inputElement = document.getElementById(`rad-${charId}`); if (inputElement) inputElement.value = character.radiation; } break;
-             case 'toggleCondition': if (character.conditions) { const index = character.conditions.indexOf(value); if (index > -1) { character.conditions.splice(index, 1); console.log(`${character.name} condition removed: ${value}`); } else { character.conditions.push(value); console.log(`${character.name} condition added: ${value}`); } } break;
-             case 'setDead': if (character.status !== 'Dead') { character.status = 'Dead'; character.hpCurrent = 0; character.svgStateKey = 'dead'; character.conditions = ['Dead']; console.log(`${character.name} marked as Dead.`); } break;
+             case 'setInitiative': const newInitiative = parseInt(value, 10); if (!isNaN(newInitiative) && newInitiative >= 1 && newInitiative <= 10) { if(character.initiative !== newInitiative) { character.initiative = newInitiative; needsDashboardSort = true; } } else { console.warn(`Invalid Initiative: ${value}`); const iEl = document.getElementById(`init-${charId}`); if(iEl) iEl.value = character.initiative; } break;
+             case 'incrementInitiative': character.initiative = Math.min(10, (Number(character.initiative) || 0) + 1); needsDashboardSort = true; break; // Ensure number, clamp max 10
+             case 'decrementInitiative': character.initiative = Math.max(1, (Number(character.initiative) || 0) - 1); needsDashboardSort = true; break; // Ensure number, clamp min 1
+             case 'setStress': const newStress = parseInt(value, 10); if (character.stress !== null && !isNaN(newStress)) { character.stress = Math.max(0, Math.min(newStress, 10)); } else if (character.stress !== null) { console.warn(`Invalid Stress: ${value}`); const iEl = document.getElementById(`stress-${charId}`); if(iEl) iEl.value = character.stress; } break;
+             case 'incrementStress': if(character.stress !== null) { character.stress = Math.min(10, character.stress + 1); } break;
+             case 'decrementStress': if(character.stress !== null) { character.stress = Math.max(0, character.stress - 1); } break;
+             case 'setRadiation': const newRad = parseInt(value, 10); if (character.radiation !== null && !isNaN(newRad)) { character.radiation = Math.max(0, Math.min(newRad, 10)); } else if (character.radiation !== null) { console.warn(`Invalid Radiation: ${value}`); const iEl = document.getElementById(`rad-${charId}`); if(iEl) iEl.value = character.radiation; } break;
+             case 'incrementRadiation': if(character.radiation !== null) { character.radiation = Math.min(10, character.radiation + 1); } break;
+             case 'decrementRadiation': if(character.radiation !== null) { character.radiation = Math.max(0, character.radiation - 1); } break;
+             case 'toggleCondition': if (character.conditions) { const index = character.conditions.indexOf(value); if (index > -1) { character.conditions.splice(index, 1); if (value === 'Incapacitated') statusChangedByCondition = true; } else { character.conditions.push(value); if (value === 'Incapacitated') statusChangedByCondition = true; } } break;
+             case 'setDead': if (character.status !== 'Dead') { character.status = 'Dead'; character.hpCurrent = 0; character.svgStateKey = 'dead'; character.conditions = ['Dead']; statusChangedByCondition = true; } break;
         }
 
         // Determine Status and SVG state
         if (character.status !== 'Dead') {
             const hpPercentage = character.hpMax > 0 ? (character.hpCurrent / character.hpMax) * 100 : 0;
             let calculatedStatus = "Healthy"; let calculatedSvgKey = "healthy";
-            if (character.hpCurrent <= 0) { calculatedStatus = 'Broken'; calculatedSvgKey = 'broken'; if (previousStatus !== 'Broken') { console.log(`${character.name} is Broken!`); } }
-            else if (hpPercentage <= 33) { calculatedStatus = 'Critical'; calculatedSvgKey = 'critical'; }
-            else if (hpPercentage <= 66) { calculatedStatus = 'Injured'; calculatedSvgKey = 'injured'; }
-            if(character.status !== calculatedStatus) character.status = calculatedStatus;
-            if(character.svgStateKey !== calculatedSvgKey) character.svgStateKey = calculatedSvgKey;
-            if (previousStatus === 'Broken' && character.hpCurrent > 0) { console.log(`${character.name} is no longer Broken.`); }
-        } else { character.svgStateKey = 'dead'; if (character.hpCurrent !== 0) character.hpCurrent = 0; }
+            if (character.conditions?.includes('Incapacitated')) { calculatedStatus = 'Incapacitated'; calculatedSvgKey = 'broken';
+            } else if (character.hpCurrent <= 0) { calculatedStatus = 'Broken'; calculatedSvgKey = 'broken'; if (previousStatus !== 'Broken' && previousStatus !== 'Incapacitated') { console.log(`${character.name} is Broken!`); }
+            } else if (hpPercentage <= 33) { calculatedStatus = 'Critical'; calculatedSvgKey = 'critical';
+            } else if (hpPercentage <= 66) { calculatedStatus = 'Injured'; calculatedSvgKey = 'injured'; }
+            if(character.status !== calculatedStatus || statusChangedByCondition) { character.status = calculatedStatus; }
+            if(character.svgStateKey !== calculatedSvgKey) { character.svgStateKey = calculatedSvgKey; }
+            if ((previousStatus === 'Broken' || previousStatus === 'Incapacitated') && character.hpCurrent > 0 && !character.conditions?.includes('Incapacitated')) { console.log(`${character.name} is no longer Broken/Incapacitated.`); }
+        } else { character.svgStateKey = 'dead'; if (character.hpCurrent !== 0) character.hpCurrent = 0; if (character.conditions.length > 1 || !character.conditions.includes('Dead')) { character.conditions = ['Dead']; } }
 
         // Trigger Re-render
         if (needsDashboardSort) { renderDashboard(); } else { renderCharacterCard(charId); }
